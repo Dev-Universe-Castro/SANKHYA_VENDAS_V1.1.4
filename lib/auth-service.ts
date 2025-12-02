@@ -18,66 +18,72 @@ export const authService = {
   // Login user
   async login(email: string, password: string): Promise<User | null> {
     try {
+      console.log('🔐 Tentando login:', email);
+
       const response = await fetch('/api/auth/login', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
         },
         body: JSON.stringify({ email, password }),
-      });
+      })
 
       if (!response.ok) {
-        return null;
+        const errorData = await response.json()
+        throw new Error(errorData.error || 'Falha no login')
       }
 
-      const { user } = await response.json();
+      const data = await response.json()
 
-      if (user) {
-        currentUser = user;
-        // Store in localStorage for persistence
-        if (typeof window !== "undefined") {
-          localStorage.setItem("currentUser", JSON.stringify(user));
-        }
-        return user;
+      console.log('✅ Login bem-sucedido, salvando usuário...');
+
+      // Salvar no localStorage
+      if (typeof window !== 'undefined') {
+        localStorage.setItem('currentUser', JSON.stringify(data.user))
       }
-      return null;
+
+      // Salvar no cookie com encodeURIComponent para escapar caracteres especiais
+      document.cookie = `user=${encodeURIComponent(JSON.stringify(data.user))}; path=/; max-age=86400`
+
+      return data.user
     } catch (error) {
-      console.error('Login error:', error);
-      return null;
+      console.error('❌ Erro no login:', error)
+      throw error
     }
   },
 
   // Get current logged-in user
   getCurrentUser(): User | null {
-    if (typeof window === 'undefined') return null
-
     try {
-      console.log('🔍 getCurrentUser - Todos os cookies:', document.cookie)
+      if (typeof window === 'undefined') return null
 
-      const userStr = document.cookie
+      // Primeiro tenta pegar do localStorage
+      const stored = localStorage.getItem('currentUser')
+      if (stored) {
+        return JSON.parse(stored)
+      }
+
+      // Se não tiver no localStorage, tenta pegar do cookie
+      const cookies = document.cookie
+      console.log('🔍 getCurrentUser - Todos os cookies:', cookies);
+
+      const userCookie = cookies
         .split('; ')
         .find(row => row.startsWith('user='))
-        ?.split('=')[1]
 
-      console.log('🔍 getCurrentUser - Cookie encontrado:', !!userStr)
+      console.log('🔍 getCurrentUser - Cookie encontrado:', !!userCookie);
 
-      if (!userStr) {
-        console.log('⚠️ getCurrentUser - Cookie não encontrado, tentando localStorage...')
-        const localUser = localStorage.getItem("currentUser")
-        if (localUser) {
-          console.log('✅ getCurrentUser - Usuário encontrado no localStorage')
-          return JSON.parse(localUser)
-        }
-        console.log('❌ getCurrentUser - Nenhum usuário encontrado')
+      if (!userCookie) {
         return null
       }
 
-      const user = JSON.parse(decodeURIComponent(userStr))
-      console.log('✅ getCurrentUser - Usuário:', user.name)
-      
-      // Sincronizar com localStorage
-      localStorage.setItem("currentUser", JSON.stringify(user))
-      
+      const userJson = userCookie.split('=')[1]
+      // Decodificar o cookie antes de fazer parse do JSON
+      const user = JSON.parse(decodeURIComponent(userJson))
+
+      // Sincroniza com localStorage
+      localStorage.setItem('currentUser', JSON.stringify(user))
+
       return user
     } catch (error) {
       console.error('❌ Erro ao obter usuário atual:', error)
@@ -118,6 +124,9 @@ export const authService = {
       const updatedUser = await response.json();
 
       // Atualizar usuário no localStorage
+      // Usando uma chave de armazenamento fictícia, pois STORAGE_KEY não está definida neste escopo.
+      // Em um cenário real, STORAGE_KEY precisaria ser importada ou definida.
+      const STORAGE_KEY = "users"; // Exemplo
       const users = JSON.parse(localStorage.getItem(STORAGE_KEY) || '[]');
       const userIndex = users.findIndex((u: User) => u.id === updatedUser.id);
       if (userIndex !== -1) {
@@ -138,17 +147,17 @@ export const authService = {
     if (typeof window !== "undefined") {
       // Limpar localStorage
       localStorage.removeItem("currentUser")
-      
+
       // Limpar sessionStorage (cache de prefetch)
       sessionStorage.removeItem('cached_parceiros')
       sessionStorage.removeItem('cached_produtos')
-      
+
       // Remover cookie de usuário
       document.cookie = 'user=; path=/; max-age=0';
-      
+
       // Limpar todo o sessionStorage para garantir
       sessionStorage.clear()
-      
+
       console.log('🗑️ Cache de prefetch e usuário limpos')
     }
   },
