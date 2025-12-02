@@ -12,7 +12,15 @@ export async function GET(request: NextRequest) {
       return NextResponse.json({ error: 'Não autorizado' }, { status: 401 })
     }
 
-    const user = JSON.parse(userCookie.value)
+    let user
+    try {
+      // O cookie já vem decodificado automaticamente pelo Next.js
+      user = JSON.parse(userCookie.value)
+    } catch (parseError) {
+      console.error('Erro ao fazer parse do cookie:', parseError)
+      return NextResponse.json({ error: 'Cookie inválido' }, { status: 401 })
+    }
+
     const role = user.role || user.FUNCAO || ''
     
     const isAdmin = role === 'Administrador' || role === 'ADMIN'
