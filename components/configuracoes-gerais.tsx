@@ -31,16 +31,28 @@ export default function ConfiguracoesGerais() {
   const fetchContrato = async () => {
     try {
       setLoading(true)
-      const userCookie = document.cookie
-        .split('; ')
-        .find(row => row.startsWith('user='))
+      
+      // Primeiro tenta pegar do localStorage
+      let userData = null
+      const storedUser = localStorage.getItem('currentUser')
+      
+      if (storedUser) {
+        userData = JSON.parse(storedUser)
+      } else {
+        // Se não tiver no localStorage, tenta pegar do cookie
+        const userCookie = document.cookie
+          .split('; ')
+          .find(row => row.startsWith('user='))
 
-      if (!userCookie) {
-        toast.error("Usuário não autenticado")
-        return
+        if (!userCookie) {
+          toast.error("Usuário não autenticado")
+          return
+        }
+
+        const cookieValue = userCookie.split('=')[1]
+        userData = JSON.parse(decodeURIComponent(cookieValue))
       }
 
-      const userData = JSON.parse(decodeURIComponent(userCookie.split('=')[1]))
       const idEmpresa = userData.ID_EMPRESA || userData.id_empresa
 
       if (!idEmpresa) {
