@@ -19,20 +19,30 @@ export default function ConfiguracoesPage() {
   // Verificar se o usuário é administrador
   useEffect(() => {
     const checkAdminAccess = () => {
-      const userCookie = document.cookie
-        .split('; ')
-        .find(row => row.startsWith('user='))
-
-      if (!userCookie) {
-        toast.error("Acesso negado. Faça login novamente.")
-        router.push('/login')
-        return
-      }
-
       try {
-        const userData = JSON.parse(decodeURIComponent(userCookie.split('=')[1]))
+        // Primeiro tenta pegar do localStorage
+        const storedUser = localStorage.getItem('currentUser')
+        let userData = null
+
+        if (storedUser) {
+          userData = JSON.parse(storedUser)
+        } else {
+          // Se não tiver no localStorage, tenta pegar do cookie
+          const userCookie = document.cookie
+            .split('; ')
+            .find(row => row.startsWith('user='))
+
+          if (!userCookie) {
+            toast.error("Acesso negado. Faça login novamente.")
+            router.push('/login')
+            return
+          }
+
+          const cookieValue = userCookie.split('=')[1]
+          userData = JSON.parse(decodeURIComponent(cookieValue))
+        }
+
         const role = userData.role || userData.FUNCAO || ''
-        
         const isAdminUser = role === 'Administrador' || role === 'ADMIN'
         
         if (!isAdminUser) {
@@ -44,8 +54,8 @@ export default function ConfiguracoesPage() {
         setIsAdmin(true)
       } catch (error) {
         console.error('Erro ao verificar permissão:', error)
-        toast.error("Erro ao verificar permissão")
-        router.push('/dashboard')
+        toast.error("Erro ao verificar permissão. Faça login novamente.")
+        router.push('/login')
       }
     }
 
